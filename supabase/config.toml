@@ -1,0 +1,7 @@
+project_id = "fryvajcaubpolpgvrqul"
+
+[functions.send-invite-email]
+verify_jwt = true
+
+[functions.slack-import]
+verify_jwt = true

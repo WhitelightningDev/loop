@@ -1,0 +1,6 @@
+ALTER TABLE public.org_smtp_settings
+  ADD COLUMN IF NOT EXISTS incoming_host text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS imap_port integer NOT NULL DEFAULT 993,
+  ADD COLUMN IF NOT EXISTS pop3_port integer NOT NULL DEFAULT 995,
+  ADD COLUMN IF NOT EXISTS outgoing_protocols text NOT NULL DEFAULT 'SMTP',
+  ADD COLUMN IF NOT EXISTS incoming_protocols text NOT NULL DEFAULT 'POP3, IMAP';
