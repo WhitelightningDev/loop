@@ -73,7 +73,8 @@ create table public.invites (
   org_id uuid not null references public.organisations(id) on delete cascade,
   email text not null,
   role public.app_role not null default 'member',
-  token text not null unique default encode(gen_random_bytes(24),'hex'),
+  -- Avoid gen_random_bytes() which may live in the `extensions` schema on Supabase.
+  token text not null unique default replace(gen_random_uuid()::text, '-', ''),
   invited_by uuid not null,
   expires_at timestamptz not null default (now() + interval '14 days'),
   accepted_at timestamptz,

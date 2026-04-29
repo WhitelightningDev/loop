@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TodosRouteImport } from './routes/todos'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -36,6 +37,11 @@ import { Route as AppAdminEmailRouteImport } from './routes/app.admin.email'
 import { Route as AppAdminChannelsRouteImport } from './routes/app.admin.channels'
 import { Route as ApiIntegrationsOauthCallbackRouteImport } from './routes/api.integrations.oauth.callback'
 
+const TodosRoute = TodosRouteImport.update({
+  id: '/todos',
+  path: '/todos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -176,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/todos': typeof TodosRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/me': typeof AppMeRouteWithChildren
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/todos': typeof TodosRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/app': typeof AppIndexRoute
   '/app/admin/channels': typeof AppAdminChannelsRoute
@@ -230,6 +238,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/todos': typeof TodosRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/me': typeof AppMeRouteWithChildren
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/reset-password'
     | '/signup'
+    | '/todos'
     | '/accept-invite/$token'
     | '/app/admin'
     | '/app/me'
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/reset-password'
     | '/signup'
+    | '/todos'
     | '/accept-invite/$token'
     | '/app'
     | '/app/admin/channels'
@@ -313,6 +324,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/reset-password'
     | '/signup'
+    | '/todos'
     | '/accept-invite/$token'
     | '/app/admin'
     | '/app/me'
@@ -342,12 +354,20 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  TodosRoute: typeof TodosRoute
   AcceptInviteTokenRoute: typeof AcceptInviteTokenRoute
   ApiIntegrationsOauthCallbackRoute: typeof ApiIntegrationsOauthCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/todos': {
+      id: '/todos'
+      path: '/todos'
+      fullPath: '/todos'
+      preLoaderRoute: typeof TodosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup': {
       id: '/signup'
       path: '/signup'
@@ -601,6 +621,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  TodosRoute: TodosRoute,
   AcceptInviteTokenRoute: AcceptInviteTokenRoute,
   ApiIntegrationsOauthCallbackRoute: ApiIntegrationsOauthCallbackRoute,
 }

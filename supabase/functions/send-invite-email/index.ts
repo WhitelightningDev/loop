@@ -90,6 +90,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    let lastAttempt: { hostname: string; port: number; tls: boolean } | null = null;
+
     const authHeader = req.headers.get("Authorization") ?? "";
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -195,6 +197,7 @@ Deno.serve(async (req) => {
     for (const port of getSmtpPortCandidates(smtp.port)) {
       const implicitTls = port === 465;
       for (const hostname of getSmtpHostCandidates(smtpHost)) {
+        lastAttempt = { hostname, port, tls: implicitTls };
         const client = new SMTPClient({
           connection: {
             hostname,
@@ -238,6 +241,7 @@ Deno.serve(async (req) => {
     console.error("send-invite-email error", e);
     let msg = e.message ?? String(e);
     let code = "smtp_error";
+    const debug = (e instanceof Error ? e.message : String(e)).slice(0, 800) || "Unknown SMTP error";
     if (isSmtpAuthError(e)) {
       code = "smtp_auth_failed";
       msg =
@@ -251,6 +255,6 @@ Deno.serve(async (req) => {
       msg =
         "The SMTP server did not respond in time. For Webonline/HKFT mailboxes, use 'mail.webonline.biz' with port 465 and TLS enabled.";
     }
-    return jsonResponse({ ok: false, error: msg, code });
+    return jsonResponse({ ok: false, error: msg, code, last_attempt: lastAttempt, debug });
   }
 });
