@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useOrg } from "@/features/organisations/OrgProvider";
+import { fetchJson } from "@/api/fetchJson";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,7 +50,7 @@ const schema = z.object({
 
 function InvitesAdmin() {
   const { currentOrg } = useOrg();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const qc = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
 
@@ -69,6 +70,8 @@ function InvitesAdmin() {
   const create = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!currentOrg || !user) return;
+    const accessToken = session?.access_token ?? null;
+    if (!accessToken) return toast.error("Not authenticated");
     const fd = new FormData(e.currentTarget);
     const parsed = schema.safeParse({
       email: fd.get("email"),
@@ -93,15 +96,20 @@ function InvitesAdmin() {
       return toast.error(error.message);
     }
     // Try sending via SMTP — non-fatal if not configured
-    const { data: sendRes, error: sendErr } = await supabase.functions.invoke("send-invite-email", {
-      body: { invite_id: inserted!.id },
-    });
+    let sendErr: Error | null = null;
+    try {
+      await fetchJson<{ ok: true }>("/api/invites/send", {
+        method: "POST",
+        accessToken,
+        json: { inviteId: inserted!.id, origin: window.location.origin },
+      });
+    } catch (e) {
+      sendErr = e as Error;
+    }
     setSubmitting(false);
-    if (sendErr || (sendRes as any)?.error) {
-      const payload = sendRes as any;
-      const code = payload?.code ? ` (${payload.code})` : "";
+    if (sendErr) {
       toast.warning(
-        `Invite created, but email not sent — ${(payload?.error ?? sendErr?.message ?? "check SMTP settings.")}${code}`,
+        `Invite created, but email not sent — ${sendErr.message ?? "check SMTP settings."}`,
         { duration: 9000 },
       );
     } else {

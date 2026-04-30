@@ -3,7 +3,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { useOrg } from "@/features/organisations/OrgProvider";
+import { fetchJson } from "@/api/fetchJson";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,6 +62,7 @@ const withTimeout = async <T,>(promise: Promise<T>, ms = 45_000): Promise<T> => 
 
 function SmtpAdmin() {
   const { currentOrg } = useOrg();
+  const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -143,29 +146,18 @@ function SmtpAdmin() {
 
   const sendTest = async () => {
     if (!currentOrg) return;
+    const accessToken = session?.access_token ?? null;
+    if (!accessToken) return toast.error("Not authenticated");
     if (!testTo) return toast.error("Enter a test email address");
     setTesting(true);
     try {
-      const { data, error } = await withTimeout(
-        supabase.functions.invoke("send-invite-email", {
-          body: { test: { to: testTo, org_id: currentOrg.id } },
+      await withTimeout(
+        fetchJson<{ ok: true }>("/api/smtp/test", {
+          method: "POST",
+          accessToken,
+          json: { orgId: currentOrg.id, to: testTo },
         }),
       );
-      const payload = data as any;
-      if (error || payload?.error || payload?.ok === false) {
-        const msg = payload?.error ?? error?.message ?? "Test failed";
-        const code = payload?.code ? ` (${payload.code})` : "";
-        toast.error(`${msg}${code}`, { duration: 10_000 });
-        if (payload?.debug) {
-          // Keep the UI clean; dump diagnostics to console for quick copy/paste.
-          console.error("SMTP test debug:", {
-            code: payload?.code,
-            last_attempt: payload?.last_attempt,
-            debug: payload?.debug,
-          });
-        }
-        return;
-      }
       toast.success("Test email sent");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Test failed");
