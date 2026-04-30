@@ -1,8 +1,8 @@
-import nodemailer from "nodemailer";
 import { supabaseAdmin } from "../../src/integrations/supabase/client.server";
 import { requireSupabaseUserId } from "../../src/server/api/auth";
 import { methodNotAllowed, readJsonBody, sendError, sendJson } from "../../src/server/api/http";
 import { requireOrgAdmin } from "../../src/server/api/roles";
+import { getEmailProvider, sendEmail } from "../../src/server/email/sender";
 import { buildInviteEmail } from "../../src/server/email/inviteEmail";
 import { getOrgSmtpSettings } from "../../src/server/smtp/smtpSettings";
 
@@ -33,7 +33,8 @@ export default async function handler(req: any, res: any) {
 
     await requireOrgAdmin(userId, orgId);
 
-    const smtp = await getOrgSmtpSettings(orgId);
+    const provider = getEmailProvider();
+    const smtp = provider === "smtp" ? await getOrgSmtpSettings(orgId) : undefined;
     const { data: emailSettings } = await supabaseAdmin
       .from("org_email_settings")
       .select("*")
@@ -52,33 +53,37 @@ export default async function handler(req: any, res: any) {
     const { subject, html } = buildInviteEmail({
       test: false,
       orgName,
-      smtpFromName: smtp.fromName || orgName,
+      smtpFromName: smtp?.fromName || orgName,
       toEmail,
       link,
       emailSettings: (emailSettings ?? null) as any,
     });
 
-    const transport = nodemailer.createTransport({
-      host: smtp.host,
-      port: smtp.port,
-      secure: smtp.port === 465,
-      auth: { user: smtp.username, pass: smtp.password },
-      tls: { servername: smtp.host },
-    });
-
-    await transport.sendMail({
-      from: `${smtp.fromName || orgName} <${smtp.fromEmail}>`,
-      to: toEmail,
+    await sendEmail({
+      smtp,
+      fromName: smtp?.fromName || orgName,
+      fromEmail: smtp?.fromEmail,
+      toEmail,
       subject,
       html,
     });
 
     return sendJson(res, 200, { ok: true });
   } catch (e) {
-    const msg = (e as Error).message || "invite_send_failed";
+    console.error("/api/invites/send error", e);
+    const err = e as any;
+    const msg = (err?.message as string) || "invite_send_failed";
     const status =
       msg === "missing_bearer_token" || msg === "invalid_token" ? 401 : msg === "forbidden" ? 403 : 500;
-    return sendError(res, status, msg);
+    const details =
+      status === 500
+        ? {
+            name: typeof err?.name === "string" ? err.name : undefined,
+            code: typeof err?.code === "string" ? err.code : undefined,
+            command: typeof err?.command === "string" ? err.command : undefined,
+            responseCode: typeof err?.responseCode === "number" ? err.responseCode : undefined,
+          }
+        : undefined;
+    return details ? sendJson(res, status, { error: msg, details }) : sendError(res, status, msg);
   }
 }
-

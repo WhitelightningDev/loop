@@ -23,8 +23,14 @@ export async function fetchJson<T>(input: string, init?: FetchJsonInit): Promise
 
   let message = `${res.status} ${res.statusText}`;
   try {
-    const j = (await res.json()) as { error?: string; message?: string };
-    message = j.error || j.message || message;
+    const j = (await res.json()) as { error?: unknown; message?: unknown };
+    const err = j.error;
+    if (typeof err === "string") message = err;
+    else if (err && typeof err === "object" && "message" in err && typeof (err as any).message === "string") {
+      message = (err as any).message;
+    } else if (typeof j.message === "string") {
+      message = j.message;
+    }
   } catch {
     // ignore
   }

@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "../../integrations/supabase/client.server";
 
 export type SmtpSettings = {
   host: string;
@@ -47,4 +47,3 @@ export async function getOrgSmtpSettings(orgId: string): Promise<SmtpSettings> {
 
   return { host, port, username, password, fromEmail, fromName };
 }
-
