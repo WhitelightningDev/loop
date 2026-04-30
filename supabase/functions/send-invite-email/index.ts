@@ -16,9 +16,23 @@ const SMTP_HOST_FALLBACKS: Record<string, string[]> = {
 
 const SMTP_SEND_TIMEOUT_MS = 12_000;
 
+type ResolvedSmtpSettings = {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  fromEmail: string;
+  fromName: string;
+};
+
 const isTlsHostnameError = (error: unknown) =>
   /NotValidForName|invalid peer certificate|Hostname mismatch|certificate.*not valid/i.test(
     error instanceof Error ? error.message : String(error),
+  );
+
+const isNetPermissionError = (error: unknown) =>
+  /PermissionDenied|Requires net access|allow-net/i.test(
+    error instanceof Error ? `${error.name} ${error.message}` : String(error),
   );
 
 const isRetryableConnectionError = (error: unknown) =>
@@ -50,6 +64,53 @@ const getSmtpPortCandidates = (port: number) => {
   // If a user picks 587 by habit, try 465 as a fallback.
   if (normalized === 587) return [587, 465];
   return [normalized];
+};
+
+const resolveSmtpSettings = async (
+  supabase: ReturnType<typeof createClient>,
+  orgId: string,
+): Promise<ResolvedSmtpSettings> => {
+  const { data: smtp, error: smtpErr } = await supabase
+    .from("org_smtp_settings")
+    .select("*")
+    .eq("org_id", orgId)
+    .maybeSingle();
+
+  if (smtpErr) throw new Error(smtpErr.message);
+
+  if (smtp) {
+    return {
+      host: String(smtp.host ?? "").trim(),
+      port: Number(smtp.port),
+      username: String(smtp.username ?? "").trim(),
+      password: String(smtp.password ?? "").trim(),
+      fromEmail: String(smtp.from_email ?? "").trim(),
+      fromName: String(smtp.from_name ?? "").trim(),
+    };
+  }
+
+  // Default fallback (opt-in) for single-tenant setups.
+  // Keeps secrets out of the DB while still allowing SMTP to work.
+  // To enable:
+  // - set DEFAULT_SMTP_ORG_ID to the target org UUID
+  // - set DEFAULT_SMTP_HOST/PORT/USERNAME/PASSWORD/FROM_EMAIL (and optional FROM_NAME)
+  const defaultOrgId = String(Deno.env.get("DEFAULT_SMTP_ORG_ID") ?? "").trim();
+  if (!defaultOrgId || defaultOrgId !== orgId) {
+    throw new Error("No SMTP settings configured for this workspace");
+  }
+
+  const host = String(Deno.env.get("DEFAULT_SMTP_HOST") ?? "").trim();
+  const port = Number(Deno.env.get("DEFAULT_SMTP_PORT") ?? "465");
+  const username = String(Deno.env.get("DEFAULT_SMTP_USERNAME") ?? "").trim();
+  const password = String(Deno.env.get("DEFAULT_SMTP_PASSWORD") ?? "").trim();
+  const fromEmail = String(Deno.env.get("DEFAULT_SMTP_FROM_EMAIL") ?? "").trim();
+  const fromName = String(Deno.env.get("DEFAULT_SMTP_FROM_NAME") ?? "").trim();
+
+  if (!host || !Number.isFinite(port) || !username || !password || !fromEmail) {
+    throw new Error("Default SMTP secrets are not fully configured");
+  }
+
+  return { host, port, username, password, fromEmail, fromName };
 };
 
 const escapeHtml = (value: unknown) =>
@@ -134,22 +195,13 @@ Deno.serve(async (req) => {
       orgName = (invite as any).organisations?.name ?? orgName;
     }
 
-    // Fetch SMTP settings (RLS allows admins only)
-    const { data: smtp, error: smtpErr } = await supabase
-      .from("org_smtp_settings")
-      .select("*")
-      .eq("org_id", orgId)
-      .maybeSingle();
-    if (smtpErr) throw new Error(smtpErr.message);
-    if (!smtp) {
-      throw new Error("No SMTP settings configured for this workspace");
-    }
+    const smtpSettings = await resolveSmtpSettings(supabase, orgId);
 
-    const smtpHost = String(smtp.host ?? "").trim();
-    const smtpUsername = String(smtp.username ?? "").trim();
-    const smtpPassword = String(smtp.password ?? "").trim();
-    const smtpFromEmail = String(smtp.from_email ?? "").trim();
-    const smtpFromName = String(smtp.from_name ?? "").trim();
+    const smtpHost = smtpSettings.host;
+    const smtpUsername = smtpSettings.username;
+    const smtpPassword = smtpSettings.password;
+    const smtpFromEmail = smtpSettings.fromEmail;
+    const smtpFromName = smtpSettings.fromName;
 
     const { data: emailSettings } = await supabase
       .from("org_email_settings")
@@ -242,7 +294,11 @@ Deno.serve(async (req) => {
     let msg = e.message ?? String(e);
     let code = "smtp_error";
     const debug = (e instanceof Error ? e.message : String(e)).slice(0, 800) || "Unknown SMTP error";
-    if (isSmtpAuthError(e)) {
+    if (isNetPermissionError(e)) {
+      code = "smtp_net_not_allowed";
+      msg =
+        "SMTP via raw TCP sockets is not available in this runtime. Use an email API provider (Resend/Postmark/Mailgun) or move SMTP sending to your Vercel backend.";
+    } else if (isSmtpAuthError(e)) {
       code = "smtp_auth_failed";
       msg =
         "SMTP authentication failed. Re-enter the mailbox password, use the full email address as the username, and confirm SMTP access is enabled for this mailbox.";

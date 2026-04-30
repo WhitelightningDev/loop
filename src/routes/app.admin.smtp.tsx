@@ -151,8 +151,19 @@ function SmtpAdmin() {
           body: { test: { to: testTo, org_id: currentOrg.id } },
         }),
       );
-      if (error || (data as any)?.error) {
-        toast.error((data as any)?.error ?? error?.message ?? "Test failed", { duration: 8000 });
+      const payload = data as any;
+      if (error || payload?.error || payload?.ok === false) {
+        const msg = payload?.error ?? error?.message ?? "Test failed";
+        const code = payload?.code ? ` (${payload.code})` : "";
+        toast.error(`${msg}${code}`, { duration: 10_000 });
+        if (payload?.debug) {
+          // Keep the UI clean; dump diagnostics to console for quick copy/paste.
+          console.error("SMTP test debug:", {
+            code: payload?.code,
+            last_attempt: payload?.last_attempt,
+            debug: payload?.debug,
+          });
+        }
         return;
       }
       toast.success("Test email sent");

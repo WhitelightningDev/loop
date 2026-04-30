@@ -98,8 +98,10 @@ function InvitesAdmin() {
     });
     setSubmitting(false);
     if (sendErr || (sendRes as any)?.error) {
+      const payload = sendRes as any;
+      const code = payload?.code ? ` (${payload.code})` : "";
       toast.warning(
-        `Invite created, but email not sent — ${(sendRes as any)?.error ?? sendErr?.message ?? "check SMTP settings."}`,
+        `Invite created, but email not sent — ${(payload?.error ?? sendErr?.message ?? "check SMTP settings.")}${code}`,
         { duration: 9000 },
       );
     } else {
