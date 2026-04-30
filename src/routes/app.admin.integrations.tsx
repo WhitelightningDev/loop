@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useOrg, isAdmin } from "@/features/organisations/OrgProvider";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -27,14 +28,15 @@ import {
 } from "lucide-react";
 import { FigmaIcon, JiraIcon } from "@/components/icons/BrandIcons";
 import {
-  listOrgIntegrations,
-  startIntegrationOAuth,
-  disconnectIntegration,
-  getProviderCatalog,
-  getOrgOAuthCredentials,
-  saveOrgOAuthCredentials,
   deleteOrgOAuthCredentials,
-} from "@/server/integrations/integrations.functions";
+  disconnectIntegration,
+  getOrgOAuthCredentials,
+  getProviderCatalog,
+  listOrgIntegrations,
+  saveOrgOAuthCredentials,
+  startIntegrationOAuth,
+  type ProviderId,
+} from "@/api/integrations";
 
 type SearchSchema = { connected?: string; error?: string };
 
@@ -70,9 +72,11 @@ const PROVIDER_DOCS: Record<string, { url: string; callback: (origin: string) =>
 
 function IntegrationsPage() {
   const { currentOrg, roles } = useOrg();
+  const { session } = useAuth();
   const qc = useQueryClient();
   const search = useSearch({ from: "/app/admin/integrations" }) as SearchSchema;
   const [credsDialog, setCredsDialog] = useState<null | { provider: string; label: string }>(null);
+  const accessToken = session?.access_token ?? null;
 
   useEffect(() => {
     if (search.connected) {
@@ -86,25 +90,32 @@ function IntegrationsPage() {
 
   const { data: catalog = [] } = useQuery({
     queryKey: ["integrations-catalog"],
-    queryFn: () => getProviderCatalog(),
+    queryFn: async () => {
+      const { providers } = await getProviderCatalog();
+      return providers;
+    },
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["org-integrations", currentOrg?.id],
-    enabled: !!currentOrg,
-    queryFn: () => listOrgIntegrations({ data: { orgId: currentOrg!.id } }),
+    queryKey: ["org-integrations", currentOrg?.id, accessToken],
+    enabled: !!currentOrg && !!accessToken,
+    queryFn: () => listOrgIntegrations({ orgId: currentOrg!.id, accessToken: accessToken! }),
   });
 
   const { data: credsData } = useQuery({
-    queryKey: ["org-oauth-creds", currentOrg?.id],
-    enabled: !!currentOrg && isAdmin(roles),
-    queryFn: () => getOrgOAuthCredentials({ data: { orgId: currentOrg!.id } }),
+    queryKey: ["org-oauth-creds", currentOrg?.id, accessToken],
+    enabled: !!currentOrg && isAdmin(roles) && !!accessToken,
+    queryFn: () => getOrgOAuthCredentials({ orgId: currentOrg!.id, accessToken: accessToken! }),
   });
 
   const startMutation = useMutation({
     mutationFn: async (provider: string) => {
+      if (!accessToken) throw new Error("Not authenticated");
       const res = await startIntegrationOAuth({
-        data: { orgId: currentOrg!.id, provider, origin: window.location.origin },
+        orgId: currentOrg!.id,
+        provider: provider as ProviderId,
+        origin: window.location.origin,
+        accessToken,
       });
       window.location.href = res.authorizeUrl;
     },
@@ -112,8 +123,10 @@ function IntegrationsPage() {
   });
 
   const disconnectMutation = useMutation({
-    mutationFn: (integrationId: string) =>
-      disconnectIntegration({ data: { integrationId } }),
+    mutationFn: (integrationId: string) => {
+      if (!accessToken) throw new Error("Not authenticated");
+      return disconnectIntegration({ integrationId, accessToken });
+    },
     onSuccess: () => {
       toast.success("Integration disconnected");
       qc.invalidateQueries({ queryKey: ["org-integrations", currentOrg?.id] });
@@ -186,7 +199,7 @@ function IntegrationsPage() {
                     {existing && (
                       <p className="mt-1 text-xs text-muted-foreground">
                         {existing.account_label} · connected{" "}
-                        {new Date(existing.connected_at).toLocaleDateString()}
+                        {existing.connected_at ? new Date(existing.connected_at).toLocaleDateString() : "—"}
                       </p>
                     )}
                     {!providerConfigured && !existing && (
@@ -236,12 +249,13 @@ function IntegrationsPage() {
         </div>
       )}
 
-      {credsDialog && currentOrg && (
+      {credsDialog && currentOrg && accessToken && (
         <CredentialsDialog
           orgId={currentOrg.id}
           provider={credsDialog.provider}
           label={credsDialog.label}
           existing={hasOrgCreds(credsDialog.provider)}
+          accessToken={accessToken}
           onClose={() => setCredsDialog(null)}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["org-oauth-creds", currentOrg.id] });
@@ -258,6 +272,7 @@ function CredentialsDialog({
   provider,
   label,
   existing,
+  accessToken,
   onClose,
   onSaved,
 }: {
@@ -265,6 +280,7 @@ function CredentialsDialog({
   provider: string;
   label: string;
   existing: boolean;
+  accessToken: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -276,7 +292,11 @@ function CredentialsDialog({
   const saveMutation = useMutation({
     mutationFn: () =>
       saveOrgOAuthCredentials({
-        data: { orgId, provider, clientId, clientSecret },
+        orgId,
+        provider: provider as ProviderId,
+        clientId,
+        clientSecret,
+        accessToken,
       }),
     onSuccess: () => {
       toast.success(`${label} credentials saved`);
@@ -287,7 +307,12 @@ function CredentialsDialog({
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteOrgOAuthCredentials({ data: { orgId, provider } }),
+    mutationFn: () =>
+      deleteOrgOAuthCredentials({
+        orgId,
+        provider: provider as ProviderId,
+        accessToken,
+      }),
     onSuccess: () => {
       toast.success(`${label} credentials removed`);
       onSaved();

@@ -35,7 +35,6 @@ import { Route as AppAdminInvitesRouteImport } from './routes/app.admin.invites'
 import { Route as AppAdminIntegrationsRouteImport } from './routes/app.admin.integrations'
 import { Route as AppAdminEmailRouteImport } from './routes/app.admin.email'
 import { Route as AppAdminChannelsRouteImport } from './routes/app.admin.channels'
-import { Route as ApiIntegrationsOauthCallbackRouteImport } from './routes/api.integrations.oauth.callback'
 
 const TodosRoute = TodosRouteImport.update({
   id: '/todos',
@@ -167,12 +166,6 @@ const AppAdminChannelsRoute = AppAdminChannelsRouteImport.update({
   path: '/channels',
   getParentRoute: () => AppAdminRoute,
 } as any)
-const ApiIntegrationsOauthCallbackRoute =
-  ApiIntegrationsOauthCallbackRouteImport.update({
-    id: '/api/integrations/oauth/callback',
-    path: '/api/integrations/oauth/callback',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -201,7 +194,6 @@ export interface FileRoutesByFullPath {
   '/app/me/preferences': typeof AppMePreferencesRoute
   '/app/admin/': typeof AppAdminIndexRoute
   '/app/me/': typeof AppMeIndexRoute
-  '/api/integrations/oauth/callback': typeof ApiIntegrationsOauthCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -227,7 +219,6 @@ export interface FileRoutesByTo {
   '/app/me/preferences': typeof AppMePreferencesRoute
   '/app/admin': typeof AppAdminIndexRoute
   '/app/me': typeof AppMeIndexRoute
-  '/api/integrations/oauth/callback': typeof ApiIntegrationsOauthCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -257,7 +248,6 @@ export interface FileRoutesById {
   '/app/me/preferences': typeof AppMePreferencesRoute
   '/app/admin/': typeof AppAdminIndexRoute
   '/app/me/': typeof AppMeIndexRoute
-  '/api/integrations/oauth/callback': typeof ApiIntegrationsOauthCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -288,7 +278,6 @@ export interface FileRouteTypes {
     | '/app/me/preferences'
     | '/app/admin/'
     | '/app/me/'
-    | '/api/integrations/oauth/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -314,7 +303,6 @@ export interface FileRouteTypes {
     | '/app/me/preferences'
     | '/app/admin'
     | '/app/me'
-    | '/api/integrations/oauth/callback'
   id:
     | '__root__'
     | '/'
@@ -343,7 +331,6 @@ export interface FileRouteTypes {
     | '/app/me/preferences'
     | '/app/admin/'
     | '/app/me/'
-    | '/api/integrations/oauth/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -356,7 +343,6 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   TodosRoute: typeof TodosRoute
   AcceptInviteTokenRoute: typeof AcceptInviteTokenRoute
-  ApiIntegrationsOauthCallbackRoute: typeof ApiIntegrationsOauthCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -543,13 +529,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminChannelsRouteImport
       parentRoute: typeof AppAdminRoute
     }
-    '/api/integrations/oauth/callback': {
-      id: '/api/integrations/oauth/callback'
-      path: '/api/integrations/oauth/callback'
-      fullPath: '/api/integrations/oauth/callback'
-      preLoaderRoute: typeof ApiIntegrationsOauthCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -623,17 +602,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   TodosRoute: TodosRoute,
   AcceptInviteTokenRoute: AcceptInviteTokenRoute,
-  ApiIntegrationsOauthCallbackRoute: ApiIntegrationsOauthCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

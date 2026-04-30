@@ -114,7 +114,7 @@ export async function getProviderCreds(
   id: ProviderId,
   orgId: string,
 ): Promise<ProviderCreds> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("../../integrations/supabase/client.server");
   const { data: row } = await supabaseAdmin
     .from("org_oauth_credentials")
     .select("client_id, client_secret")

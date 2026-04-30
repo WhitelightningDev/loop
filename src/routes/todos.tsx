@@ -16,7 +16,7 @@ function Home() {
 
   return (
     <ul>
-      {todos?.map((todo) => (
+      {todos?.map((todo: Todo) => (
         <li key={todo.id}>{todo.name}</li>
       ))}
     </ul>

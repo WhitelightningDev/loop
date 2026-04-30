@@ -15,13 +15,14 @@ import {
   Users,
 } from "lucide-react";
 import loopLogo from "@/assets/loop-icon.png";
-import { getTeamsCount } from "@/server/stats.functions";
 
 export const Route = createFileRoute("/")({
   component: Landing,
   loader: async () => {
     try {
-      return await getTeamsCount();
+      const res = await fetch("/api/stats/teams-count");
+      if (!res.ok) throw new Error("teams_count_failed");
+      return (await res.json()) as { count: number };
     } catch {
       return { count: 0 };
     }
