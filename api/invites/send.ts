@@ -2,9 +2,8 @@ import { supabaseAdmin } from "../../src/integrations/supabase/client.server";
 import { requireSupabaseUserId } from "../../src/server/api/auth";
 import { methodNotAllowed, readJsonBody, sendError, sendJson } from "../../src/server/api/http";
 import { requireOrgAdmin } from "../../src/server/api/roles";
-import { getEmailProvider, sendEmail } from "../../src/server/email/sender";
+import { sendEmailForOrg } from "../../src/server/email/sender";
 import { buildInviteEmail } from "../../src/server/email/inviteEmail";
-import { getOrgSmtpSettings } from "../../src/server/smtp/smtpSettings";
 
 type Body = { inviteId?: string; origin?: string };
 
@@ -33,8 +32,6 @@ export default async function handler(req: any, res: any) {
 
     await requireOrgAdmin(userId, orgId);
 
-    const provider = getEmailProvider();
-    const smtp = provider === "smtp" ? await getOrgSmtpSettings(orgId) : undefined;
     const { data: emailSettings } = await supabaseAdmin
       .from("org_email_settings")
       .select("*")
@@ -53,16 +50,15 @@ export default async function handler(req: any, res: any) {
     const { subject, html } = buildInviteEmail({
       test: false,
       orgName,
-      smtpFromName: smtp?.fromName || orgName,
+      smtpFromName: orgName,
       toEmail,
       link,
       emailSettings: (emailSettings ?? null) as any,
     });
 
-    await sendEmail({
-      smtp,
-      fromName: smtp?.fromName || orgName,
-      fromEmail: smtp?.fromEmail,
+    await sendEmailForOrg({
+      orgId,
+      fromName: orgName,
       toEmail,
       subject,
       html,

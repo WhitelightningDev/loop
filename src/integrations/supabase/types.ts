@@ -1086,7 +1086,7 @@ export type Database = {
       call_status: "ringing" | "active" | "ended"
       channel_type: "public" | "private" | "group" | "dm"
       channel_visibility: "open" | "restricted"
-      integration_provider: "github" | "jira" | "figma"
+      integration_provider: "github" | "jira" | "figma" | "google"
       integration_status: "connected" | "error" | "expired"
       job_role:
         | "employee"
@@ -1244,7 +1244,7 @@ export const Constants = {
       call_status: ["ringing", "active", "ended"],
       channel_type: ["public", "private", "group", "dm"],
       channel_visibility: ["open", "restricted"],
-      integration_provider: ["github", "jira", "figma"],
+      integration_provider: ["github", "jira", "figma", "google"],
       integration_status: ["connected", "error", "expired"],
       job_role: [
         "employee",

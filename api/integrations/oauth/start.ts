@@ -55,6 +55,12 @@ export default async function handler(req: any, res: any) {
       params.set("audience", "api.atlassian.com");
       params.set("prompt", "consent");
     }
+    if (body.provider === "google") {
+      // Required to get a refresh_token for long-lived use.
+      params.set("access_type", "offline");
+      params.set("prompt", "consent");
+      params.set("include_granted_scopes", "true");
+    }
     if (codeVerifier) {
       params.set("code_challenge", pkceChallenge(codeVerifier));
       params.set("code_challenge_method", "S256");
@@ -68,4 +74,3 @@ export default async function handler(req: any, res: any) {
     return sendError(res, status, msg);
   }
 }
-

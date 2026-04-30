@@ -1,8 +1,7 @@
 import { requireSupabaseUserId } from "../../src/server/api/auth";
 import { methodNotAllowed, readJsonBody, sendError, sendJson } from "../../src/server/api/http";
 import { requireOrgAdmin } from "../../src/server/api/roles";
-import { getEmailProvider, sendEmail } from "../../src/server/email/sender";
-import { getOrgSmtpSettings } from "../../src/server/smtp/smtpSettings";
+import { resolveEmailProviderForOrg, sendEmailForOrg } from "../../src/server/email/sender";
 
 type Body = { orgId?: string; to?: string };
 
@@ -17,21 +16,17 @@ export default async function handler(req: any, res: any) {
 
     await requireOrgAdmin(userId, body.orgId);
 
-    const provider = getEmailProvider();
-    const smtp = provider === "smtp" ? await getOrgSmtpSettings(body.orgId) : undefined;
-    const fromName = smtp?.fromName || "Loop";
-    const fromEmail = smtp?.fromEmail;
-
-    await sendEmail({
-      smtp,
+    const provider = await resolveEmailProviderForOrg(body.orgId);
+    const fromName = "Loop";
+    await sendEmailForOrg({
+      orgId: body.orgId,
       fromName,
-      fromEmail,
       toEmail: body.to,
       subject: `Email test from ${fromName}`,
       html: "<p>This is a test message confirming your email sending is working.</p>",
     });
 
-    return sendJson(res, 200, { ok: true });
+    return sendJson(res, 200, { ok: true, provider });
   } catch (e) {
     console.error("/api/smtp/test error", e);
     const err = e as any;

@@ -1,7 +1,7 @@
 // Provider definitions for org-level OAuth integrations.
 // CLIENT IDs are public; client secrets are server-only.
 
-export type ProviderId = "github" | "jira" | "figma";
+export type ProviderId = "github" | "jira" | "figma" | "google";
 
 export interface ProviderDef {
   id: ProviderId;
@@ -93,6 +93,29 @@ export const PROVIDERS: Record<ProviderId, ProviderDef> = {
       };
     },
   },
+  google: {
+    id: "google",
+    label: "Google (Gmail)",
+    description: "Send emails via the Gmail API (no SMTP required).",
+    authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    scopes: ["openid", "email", "https://www.googleapis.com/auth/gmail.send"],
+    pkce: true,
+    fetchAccount: async (token) => {
+      const res = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      if (!res.ok) throw new Error(`Google userinfo failed: ${res.status}`);
+      const j = (await res.json()) as { sub?: string; email?: string };
+      const accountId = j.sub ?? j.email ?? "google-user";
+      const accountLabel = j.email ?? "Google account";
+      return {
+        accountId,
+        accountLabel,
+        metadata: { email: j.email ?? null },
+      };
+    },
+  },
 };
 
 export function getProvider(id: string): ProviderDef {
@@ -128,6 +151,7 @@ export async function getProviderCreds(
     github: ["GITHUB_OAUTH_CLIENT_ID", "GITHUB_OAUTH_CLIENT_SECRET"],
     jira: ["JIRA_OAUTH_CLIENT_ID", "JIRA_OAUTH_CLIENT_SECRET"],
     figma: ["FIGMA_OAUTH_CLIENT_ID", "FIGMA_OAUTH_CLIENT_SECRET"],
+    google: ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"],
   };
   const [idEnv, secretEnv] = map[id];
   const clientId = process.env[idEnv];

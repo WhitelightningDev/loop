@@ -25,6 +25,7 @@ import {
   Settings2,
   KeyRound,
   CheckCircle2,
+  Mail,
 } from "lucide-react";
 import { FigmaIcon, JiraIcon } from "@/components/icons/BrandIcons";
 import {
@@ -52,6 +53,7 @@ function ProviderIcon({ id }: { id: string }) {
   if (id === "github") return <Github className="h-6 w-6" />;
   if (id === "jira") return <JiraIcon className="h-6 w-6" />;
   if (id === "figma") return <FigmaIcon className="h-6 w-6" />;
+  if (id === "google") return <Mail className="h-6 w-6" />;
   return <Plug className="h-6 w-6" />;
 }
 
@@ -66,6 +68,10 @@ const PROVIDER_DOCS: Record<string, { url: string; callback: (origin: string) =>
   },
   figma: {
     url: "https://www.figma.com/developers/apps",
+    callback: (o) => `${o}/api/integrations/oauth/callback`,
+  },
+  google: {
+    url: "https://console.cloud.google.com/apis/credentials",
     callback: (o) => `${o}/api/integrations/oauth/callback`,
   },
 };
@@ -143,7 +149,7 @@ function IntegrationsPage() {
   }
 
   const integrations = data?.integrations ?? [];
-  const configured = data?.configured ?? { github: false, jira: false, figma: false };
+  const configured = data?.configured ?? { github: false, jira: false, figma: false, google: false };
   const credentialList = credsData?.credentials ?? [];
   const hasOrgCreds = (id: string) => credentialList.some((c) => c.provider === id);
 

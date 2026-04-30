@@ -177,7 +177,9 @@ function SmtpAdmin() {
         <div>
           <h2 className="text-lg font-semibold">Email (SMTP)</h2>
           <p className="text-sm text-muted-foreground">
-            Configure your own SMTP server to send invite emails from your domain.
+            Configure your own SMTP server to send invite emails from your domain. If you're deployed
+            on Vercel and SMTP tests keep failing, connect <span className="font-medium">Google (Gmail)</span>{" "}
+            in Admin → Integrations to send via the Gmail API instead (no SMTP required).
           </p>
         </div>
       </div>

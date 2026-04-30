@@ -1,6 +1,6 @@
 import { fetchJson } from "./fetchJson";
 
-export type ProviderId = "github" | "jira" | "figma";
+export type ProviderId = "github" | "jira" | "figma" | "google";
 
 export type ProviderCatalogItem = {
   id: ProviderId;

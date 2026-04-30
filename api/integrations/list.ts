@@ -37,6 +37,9 @@ export default async function handler(req: any, res: any) {
       figma:
         orgConfigured.has("figma") ||
         (!!process.env.FIGMA_OAUTH_CLIENT_ID && !!process.env.FIGMA_OAUTH_CLIENT_SECRET),
+      google:
+        orgConfigured.has("google") ||
+        (!!process.env.GOOGLE_OAUTH_CLIENT_ID && !!process.env.GOOGLE_OAUTH_CLIENT_SECRET),
     };
 
     return sendJson(res, 200, { integrations: rows ?? [], configured });
@@ -47,4 +50,3 @@ export default async function handler(req: any, res: any) {
     return sendError(res, status, msg);
   }
 }
-
